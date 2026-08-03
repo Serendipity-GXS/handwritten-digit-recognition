@@ -1,0 +1,13 @@
+# Build artifacts
+main.exe
+src/*.o
+src/*.obj
+
+# MNIST dataset (re-download with: scripts/download_mnist.ps1)
+data/
+
+# Trained model weights (generated in stage 5)
+weights/
+
+# Misc
+*.log
