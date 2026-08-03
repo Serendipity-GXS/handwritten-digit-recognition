@@ -7,11 +7,19 @@
 //
 // Stage 0: minimal placeholder that verifies the toolchain works.
 
-#include <stdio.h>
-
-int main(void)
+#include<stdio.h>
+union
 {
-    printf("Hello, MNIST! (pure-C CNN project)\n");
-    printf("Stage 0: toolchain + dataset ready.\n");
+    short name;
+    char age[2];
+}li;
+
+int main()
+{
+    li.name=1234; 
+    printf("%x%x",li.age[0],li.age[1]);
+    int n = sizeof(int);
+    int c = sizeof(short);
+    printf("\n%d,%d",n,c);
     return 0;
 }

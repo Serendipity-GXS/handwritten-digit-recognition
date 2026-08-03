@@ -588,6 +588,12 @@ void layer_update(Layer *l, float lr);
 | 5 | 权重保存/加载可用 | ☐ |
 | 5 | demo 读图预测正确 | ☐ |
 
+> **2026-08-03 会话备注（阶段 1 启动）**
+> - 阶段 0 全部验收通过：4 个数据文件大小正确、gcc 15.2.0、mingw32-make 4.4.1
+> - 已建立 Git 跟踪，完成首次提交 `49fd51a`；src/main.c 当前为大小端 union 实验代码（学习留痕）
+> - 已学阶段 1 概念：二进制 vs 文本、magic number 与 idx 格式、大端字节序（含 union 实验）、printf 格式占位符
+> - **下一步**：实现 `data.c/h`（`mnist_load` / `print_ascii_image`），打印出可辨认的数字字符画
+
 ---
 
 *本文档由 Claude 与小郭共同维护。每到一个里程碑，可更新进度打卡表与"学到的新知识"备注。*
