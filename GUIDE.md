@@ -579,7 +579,7 @@ void layer_update(Layer *l, float lr);
 | 阶段 | 任务 | 状态 |
 |---|---|---|
 | 0 | 工具链就绪、数据文件就位 | ✅ 2026-08-03 |
-| 1 | 能打印 MNIST 数字字符画 | ☐ |
+| 1 | 能打印 MNIST 数字字符画 | ✅ 2026-08-04 |
 | 2 | Tensor 结构与自测通过 | ☐ |
 | 3 | MLP 梯度检查通过 | ☐ |
 | 3 | MLP 测试集 ~92% | ☐ |
@@ -593,6 +593,15 @@ void layer_update(Layer *l, float lr);
 > - 已建立 Git 跟踪，完成首次提交 `49fd51a`；src/main.c 当前为大小端 union 实验代码（学习留痕）
 > - 已学阶段 1 概念：二进制 vs 文本、magic number 与 idx 格式、大端字节序（含 union 实验）、printf 格式占位符
 > - **下一步**：实现 `data.c/h`（`mnist_load` / `print_ascii_image`），打印出可辨认的数字字符画
+
+> **2026-08-04 会话备注（阶段 1 完成）**
+> - `data.c/h` 三个函数全部实现：`mnist_load`（goto cleanup + `success` 标志）、`mnist_free`、`print_ascii_image`
+> - 踩并修通两个隐蔽 bug：
+>   1. goto cleanup 成功路径误 free 数据 → SIGSEGV；加 `success` 标志，**只有失败才释放数据**（成功时数据归调用者）
+>   2. 标签 idx 文件漏读 count 4 字节 → 标签整体错位（第 0 张图是 5 却打印 label=0）；补读 count 并校验与图像样本数一致
+> - 验证通过：train 60000 / test 10000；字符画可辨认（train 前 5 张 5,0,4,1,9；test 前 3 张 7,2,1）；标签与图像配对正确
+> - 阶段 1 概念验收通过：小郭能讲清大端拼字节（含"单字节像素无字节序问题"的洞见）与归一化动机（量级匹配）
+> - **下一步**：阶段 2 张量工具层 `tensor.c/h`
 
 ---
 

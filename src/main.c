@@ -1,25 +1,27 @@
-// main.c - program entry point
-//
-// Modes (added in later stages):
-//   train   - train the network and save weights
-//   eval    - load weights, report test accuracy / confusion matrix
-//   demo    - load weights, predict a handwritten digit image
-//
-// Stage 0: minimal placeholder that verifies the toolchain works.
+// main.c — temporary test entry for the data layer.
+#include <stdio.h>
+#include "data.h"
 
-#include<stdio.h>
-union
+int main(void)
 {
-    short name;
-    char age[2];
-}li;
+    MnistSet test;
 
-int main()
-{
-    li.name=1234; 
-    printf("%x%x",li.age[0],li.age[1]);
-    int n = sizeof(int);
-    int c = sizeof(short);
-    printf("\n%d,%d",n,c);
+    int err = mnist_load(&test,
+                         "data\\t10k-images-idx3-ubyte",
+                         "data\\t10k-labels-idx1-ubyte");
+    if (err != MNIST_OK) {
+        printf("mnist_load failed, err = %d\n", err);
+        return 1;
+    }
+
+    printf("n = %d, %d x %d\n", test.n, test.height, test.width);
+
+    for (int i = 0; i < 3; i++) {
+        printf("\n--- sample %d, label = %d ---\n", i, test.labels[i]);
+        print_ascii_image(test.images + i * test.height * test.width,
+                          test.height, test.width);
+    }
+
+    mnist_free(&test);
     return 0;
 }
