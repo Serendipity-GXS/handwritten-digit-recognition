@@ -76,7 +76,8 @@ int mnist_load(MnistSet *set, const char *img_path, const char *lbl_path)
         goto cleanup;
     }
     int n_lbl = bin_to_int(b2);
-    if(n_lbl != n){ //校验图像集和标签集数据数量是否一致
+    if(n_lbl != n){ 
+        //校验图像集和标签集数据数量是否一致
         err = MNIST_FORMAT_ERROR;
         goto cleanup;
     }
@@ -136,7 +137,7 @@ void mnist_free(MnistSet *set){
     set -> labels = NULL;
 }
 
-// Prints one image (h*w floats) as ASCII art, for visual verification.
+//绘制ASCII数字图形
 void print_ascii_image(const float *img, int h, int w){
     static const char ramp[] = "..:-=+*#%@";
     for(int j = 0;j < h;j ++){

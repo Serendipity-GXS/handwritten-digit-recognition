@@ -1,27 +1,29 @@
 // main.c — temporary test entry for the data layer.
 #include <stdio.h>
 #include "data.h"
+#include "tensor.h"
 
 int main(void)
 {
-    MnistSet test;
-
-    int err = mnist_load(&test,
-                         "data\\t10k-images-idx3-ubyte",
-                         "data\\t10k-labels-idx1-ubyte");
-    if (err != MNIST_OK) {
-        printf("mnist_load failed, err = %d\n", err);
+    int shape[4] = {2,3,4};
+    Tensor t;
+    TensorError err = tensor_create(&t,3,shape);
+    if(err != TENSOR_OK){
+        printf("TENSOR_ERROR:%d",err);
         return 1;
     }
-
-    printf("n = %d, %d x %d\n", test.n, test.height, test.width);
-
-    for (int i = 0; i < 3; i++) {
-        printf("\n--- sample %d, label = %d ---\n", i, test.labels[i]);
-        print_ascii_image(test.images + i * test.height * test.width,
-                          test.height, test.width);
+    tensor_fill(&t,0.9);
+    printf("shape0 - 3:");
+    for(int i = 0;i < t.ndim; i ++){
+        printf("%d ",t.shape[i]);
     }
+    printf("\nsize:%d",t.size);
+    printf("\ndata:");
+    for(int i = 0;i < t.size; i ++){
+        printf("%f ",t.data[i]);
+    }
+    printf("\nAll elements OK.");
 
-    mnist_free(&test);
+    tensor_free(&t);
     return 0;
 }

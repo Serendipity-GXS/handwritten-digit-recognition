@@ -580,7 +580,7 @@ void layer_update(Layer *l, float lr);
 |---|---|---|
 | 0 | 工具链就绪、数据文件就位 | ✅ 2026-08-03 |
 | 1 | 能打印 MNIST 数字字符画 | ✅ 2026-08-04 |
-| 2 | Tensor 结构与自测通过 | ☐ |
+| 2 | Tensor 结构与自测通过 | ✅ 2026-08-05 |
 | 3 | MLP 梯度检查通过 | ☐ |
 | 3 | MLP 测试集 ~92% | ☐ |
 | 4 | Conv/Pool 梯度检查通过 | ☐ |
@@ -602,6 +602,13 @@ void layer_update(Layer *l, float lr);
 > - 验证通过：train 60000 / test 10000；字符画可辨认（train 前 5 张 5,0,4,1,9；test 前 3 张 7,2,1）；标签与图像配对正确
 > - 阶段 1 概念验收通过：小郭能讲清大端拼字节（含"单字节像素无字节序问题"的洞见）与归一化动机（量级匹配）
 > - **下一步**：阶段 2 张量工具层 `tensor.c/h`
+
+> **2026-08-05 会话备注（阶段 2 完成）**
+> - `tensor.c/h` 三件套实现：`tensor_create`（goto cleanup 练习 + 参数校验 + size 计算 + malloc）、`tensor_free`、`tensor_fill`（扁平遍历，一层循环）
+> - 踩坑记录：`nidm` 拼写、`size*=ndim` 多乘 3 倍、`==` 写反成 `=`、cleanup 条件写反（成功路径误 free 数据，重演阶段 1 SIGSEGV 风险）；修复后 cleanup 只 `return err`，malloc 前先置 `t->data=NULL`
+> - 关键领悟：**连续内存 → fill 不需要按维度嵌套循环，扁平遍历即可**；shape（逻辑形状）与 size（扁平大小）是同一张量的两种描述
+> - 验证通过：`{2,3,4}` 张量 size=24，逐元素验证 `All elements OK`
+> - **下一步**：阶段 3 MLP 热身网络——先讲"单个神经元 = 线性回归 `ŷ=wx+b` + 梯度下降"，再实现 Dense 层（详见 §5 阶段 3 与 §4.3 概念清单，注意归一化回扣点）
 
 ---
 
