@@ -11,7 +11,6 @@ int tensor_create(Tensor *t, int ndim, const int shape[]){
     int size = 1;
     TensorError err = TENSOR_OK;
 
-
     //参数检查
     if(t == NULL || shape == NULL){
         err = TENSOR_NULL_POINTER_ERROR;
