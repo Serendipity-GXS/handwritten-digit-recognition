@@ -257,12 +257,12 @@ void   tensor_fill(Tensor *t, float v);
 
 ### 阶段 3：MLP 热身网络
 
-**目标**：实现一个两隐藏层前的**最小可训练网络**，跑通"前向 → 反向 → SGD 更新 → 训练循环"全套流程，测试集准确率 ~92%。
+**目标**：实现一个两隐藏层的**最小可训练网络**，跑通"前向 → 反向 → SGD 更新 → 训练循环"全套流程，测试集准确率 ~92%。
 
-**架构（锁定）**：
+**架构（锁定，2026-08-07 小郭改为两隐藏层）**：
 ```
-输入(784) → Dense(128, ReLU) → Dense(10, Softmax)
-参数量 ≈ 101,770（~10万），桌面 CPU 训练分钟级
+输入(784) → Dense(128, ReLU) → Dense(64, ReLU) → Dense(10, Softmax)
+参数量 ≈ 109,386（128×784 + 64×128 + 10×64 + 偏置），桌面 CPU 训练分钟级
 ```
 
 **概念讲解点（教学主线，本阶段是重中之重）**：
@@ -609,6 +609,18 @@ void layer_update(Layer *l, float lr);
 > - 关键领悟：**连续内存 → fill 不需要按维度嵌套循环，扁平遍历即可**；shape（逻辑形状）与 size（扁平大小）是同一张量的两种描述
 > - 验证通过：`{2,3,4}` 张量 size=24，逐元素验证 `All elements OK`
 > - **下一步**：阶段 3 MLP 热身网络——先讲"单个神经元 = 线性回归 `ŷ=wx+b` + 梯度下降"，再实现 Dense 层（详见 §5 阶段 3 与 §4.3 概念清单，注意归一化回扣点）
+
+> **2026-08-06 会话备注（阶段 3 代码启动）**
+> - 概念课完成并博客留档：`D:\Hexo\source\_posts\2026-08-06-gradient-descent-experiment.md`（收敛→发散→η按x²缩小恢复→归一化动机；实验程序提交 `7084572`）
+> - **下一步**：带教模式写 `dense_forward`——Claude 只引导不代写（GUIDE §2.2 守则），先提问让小郭想清"一层神经元"的权重形状与内存布局，再自己写 `layer.h/c` 并手算验收
+
+> **2026-08-07 会话备注（阶段 3：dense_forward + ReLU 完成）**
+> - 架构改为两隐藏层：784→Dense(128,ReLU)→Dense(64,ReLU)→Dense(10,Softmax)（已更新本文件锁定架构）
+> - 小郭独立实现：`layer.h/c` 的 `dense_forward`（两层循环 + 行优先下标 `W[i*col+j]`）、`relu_activation`（就地 `max(0,x)`）、`relu_forward`（复合封装：dense+激活）
+> - 设计亮点：激活原语 `relu_activation` 与复合层 `relu_forward` 分层（"便捷封装 + 底层原语"，灵感来自 STM32 标准库接口风格）
+> - 踩坑记录：`Tensor *` 访问数据漏 `->data`（编译器不报、运行时越界）；内层循环结束后用 `j` 索引外层数组（越界）；`result` 用 `int`（应 `float`）；NULL 检查放在解引用之后（应先查 NULL）；`relu_activation` 过度校验与自身无关的字段（`weight/bias` 等）
+> - 验收通过：手算 `-0.8 / 0.4`，ReLU 压负留正，与程序输出一致
+> - **下一步**：softmax + 交叉熵损失（`softmax_forward` / `softmax_crossentropy_loss`），联合梯度 `∂L/∂z = p − y`
 
 ---
 
