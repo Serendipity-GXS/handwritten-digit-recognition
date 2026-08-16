@@ -61,6 +61,15 @@ int relu_activation(Layer *layer_to_be_activated);
 int relu_forward(const Tensor *pre_actval,Layer *next_layer);
 
 /**
+ * @brief ReLU反向传播函数
+ * @param layer_to_be_backward 待反向操作的层
+ * @retval 返回函数的执行状态
+ * @note 反向操作前请确保已经调用了dense_backward,保证delta字段已经更新为损失函数对激活值的导数
+ * @note 本函数是就地进行的，会覆盖原本的delta字段为损失函数对logits的导数
+ */
+int relu_backward(Layer* layer_to_be_backward);
+
+/**
  * @brief softmax函数，将输出层评分转化为合理的概率分布
  * @note softmax操作是就地进行的。如果需要原始评分数据请在执行函数前备份
  * @param layer_to_be_softmax 指向需执行softmax操作的神经元层的指针
@@ -86,5 +95,12 @@ int softmax_backward(Layer *layer_to_be_backward,int label);
  */
 float softmax_crossentropy_loss(const Tensor *probs, int label);
 
-
+/**
+ * @brief 随机梯度下降函数，更新权重和偏置参数
+ * @param this_layer 指向待执行参数更新操作的layer指针
+ * @param learning_rate 指定更新幅度（学习率）
+ * @note 参数更新操作就地进行。如果需要保留原始权重参数请提前备份
+ * @retval 返回函数的执行状态
+ */
+int sgd_update(Layer* this_layer,float learning_rate);
 #endif /*LAYER_H*/

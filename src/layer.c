@@ -77,7 +77,6 @@ int relu_activation(Layer *layer_to_be_activated){
             layer_to_be_activated -> activation_value -> data[i] = 0;
         }
     }
-
     return LAYER_OK;
 }
 
@@ -86,6 +85,21 @@ int relu_forward(const Tensor *pre_actval,Layer *next_layer){
     if(err != LAYER_OK) return err;
     err = relu_activation(next_layer);
     return err;
+}
+
+int relu_backward(Layer* layer_to_be_backward){
+    //参数校验
+    if(layer_to_be_backward == NULL)    return LAYER_NULL_POINTER_ERROR;
+    int size = layer_to_be_backward -> delta ->size;
+    for(int i = 0;i < size;i ++){
+        if(layer_to_be_backward -> activation_value -> data[i] > 0){
+            layer_to_be_backward -> delta -> data[i] *= 1.0f;
+        }
+        else{
+            layer_to_be_backward -> delta -> data[i] *= 0.0f;
+        }
+    }
+    return LAYER_OK;
 }
 
 int softmax_forward(Layer *layer_to_be_softmax){
@@ -139,4 +153,23 @@ float softmax_crossentropy_loss(const Tensor *probs, int label){
     assert(probs != NULL && label < probs -> size && label >= 0);
     return - log(probs -> data[label] + 0.000001);
     //加一个0.000001是为了防止softmax计算后得到0后直接带入log计算导致错误
+}
+
+int sgd_update(Layer* this_layer,float learning_rate){
+    //参数校验
+    if(this_layer == NULL)  return LAYER_NULL_POINTER_ERROR;
+    if(learning_rate <= 0)  return LAYER_PARAMETER_INVALID;
+
+    int bias_size = this_layer -> bias -> size;
+    int weight_size = this_layer -> weight -> size;
+    //更新偏置参数
+    for(int i = 0;i < bias_size;i ++){
+        this_layer -> bias -> data[i] -= learning_rate * this_layer -> grad_bias -> data[i];
+    }
+    //更新权重参数
+    for(int j = 0;j < weight_size;j ++){
+        this_layer -> weight -> data[j] -= learning_rate * this_layer -> grad_weight -> data[j];
+    }
+
+    return LAYER_OK;
 }

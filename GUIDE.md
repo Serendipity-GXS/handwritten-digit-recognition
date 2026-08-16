@@ -622,6 +622,13 @@ void layer_update(Layer *l, float lr);
 > - 验收通过：手算 `-0.8 / 0.4`，ReLU 压负留正，与程序输出一致
 > - **下一步**：softmax + 交叉熵损失（`softmax_forward` / `softmax_crossentropy_loss`），联合梯度 `∂L/∂z = p − y`
 
+> **2026-08-15/16 会话备注（阶段 3：反向传播闭环）**
+> - 反向四件套全部完成并手算验收：`softmax_backward`（δ = p − y，联合梯度省去 softmax 雅可比）、`dense_backward`（gradW=δ⊗a_prev 外积 / gradB=δ / 回传 δ_prev=Wᵀδ，索引转置不物理搬移）、`relu_backward`（δz=δa⊙relu'(z)，判开关只读 activation_value）、`sgd_update`（w-=lr·gradW，含 lr<=0 防御）
+> - 关键架构决策（方案 B）：每层加 `delta` 缓冲承载误差信号，`activation_value` 永远只存激活值、backward 只读。曾试过覆写 actval 存 0/1 开关，虽数学正确但破坏激活值信息、引入顺序依赖，已修正为只读判开关
+> - 踩坑记录：dense_backward 曾用 `float** transpose = malloc(col*row*sizeof(float))` 解引用未初始化垃圾指针崩溃 → 弃用物理转置，改"固定列 j、遍历行 i 的跳步读取"即得 Wᵀ 效果（小郭已理解）
+> - 验证通过：gradW/gradB/prev_delta/relu 开关/sgd 更新后参数，全部与手算一致；relu 测试覆盖正/负/恰零三种情况
+> - **下一步**：搭训练循环——权重随机初始化（不能从 0 开始）→ 组装三层(128/64/10) → 接阶段 2 data 层 → epoch/sample/loss/acc 打印
+
 ---
 
 *本文档由 Claude 与小郭共同维护。每到一个里程碑，可更新进度打卡表与"学到的新知识"备注。*

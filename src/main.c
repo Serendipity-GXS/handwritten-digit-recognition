@@ -95,6 +95,52 @@ int main(void)
     printf("grad_bias     = {%.4f, %.4f}\n", gb.data[0], gb.data[1]);
     printf("prev_delta    = {%.4f, %.4f, %.4f}\n", pdelta.data[0], pdelta.data[1], pdelta.data[2]);
 
+    /* 9. 测试relu_backward: δz[i] = relu'(z[i]) · δa[i], 且actval只读不覆写 */
+    /* 手算期望: actval={2,-1,0}, δa={0.5,-0.8,1.2}
+       → 正的保留, 负的/零置0: δz={0.5, 0, 0}; actval 保持不变 */
+    Tensor ract;
+    terr = tensor_create(&ract, 1, (const int[]){3});
+    if (terr != TENSOR_OK) { printf("create ract failed: %d\n", terr); return 1; }
+    ract.data[0] = 2.0f;
+    ract.data[1] = -1.0f;
+    ract.data[2] = 0.0f;
+
+    Tensor rdlt;
+    terr = tensor_create(&rdlt, 1, (const int[]){3});
+    if (terr != TENSOR_OK) { printf("create rdlt failed: %d\n", terr); return 1; }
+    rdlt.data[0] = 0.5f;
+    rdlt.data[1] = -0.8f;
+    rdlt.data[2] = 1.2f;
+
+    /* 组装隐藏层Layer: relu_backward只读activation_value和delta, 其余字段仅为完整组装 */
+    Layer RL;
+    RL.index = 0;
+    RL.weight_col = 3;
+    RL.weight_row = 2;
+    RL.weight = &w;
+    RL.bias = &b;
+    RL.grad_weight = &gw;
+    RL.grad_bias = &gb;
+    RL.delta = &rdlt;
+    RL.activation_value = &ract;
+
+    lerr = relu_backward(&RL);
+    printf("relu_backward return: %d\n", lerr);
+    printf("delta_after  = {%.4f, %.4f, %.4f}\n", rdlt.data[0], rdlt.data[1], rdlt.data[2]);
+    printf("actval_kept  = {%.4f, %.4f, %.4f}\n", ract.data[0], ract.data[1], ract.data[2]);
+
+    tensor_free(&ract);
+    tensor_free(&rdlt);
+
+    /* 10. 测试sgd_update: w -= lr*gradW, b -= lr*gradB, 接着第8步算好的梯度 */
+    /* lr = 0.01, 手算: weight[0]=0.5-0.01*(-1000)=10.5, weight[2]=0.2-0.01*1000=-9.8
+       weight[5]=-0.5-0.01*(-1000)=9.5, bias[0]=0.1-0.01*(-1)=0.11, bias[1]=0.9-0.01*1=0.89 */
+    lerr = sgd_update(&L, 0.01f);
+    printf("sgd_update return: %d\n", lerr);
+    printf("weight_after[0] = {%.4f, %.4f, %.4f}\n", w.data[0], w.data[1], w.data[2]);
+    printf("weight_after[1] = {%.4f, %.4f, %.4f}\n", w.data[3], w.data[4], w.data[5]);
+    printf("bias_after      = {%.4f, %.4f}\n", b.data[0], b.data[1]);
+
     tensor_free(&in);
     tensor_free(&w);
     tensor_free(&b);
