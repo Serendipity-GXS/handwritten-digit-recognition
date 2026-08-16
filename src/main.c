@@ -1,9 +1,11 @@
 // main.c — temporary test entry for dense_forward.
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "tensor.h"
 #include "layer.h"
 #include "model.h"
+#include "data.h"
 
 int main(void)
 {
@@ -172,6 +174,122 @@ int main(void)
     }
     model_free(&M);
     printf("model_free done\n");
+
+    /* 12. 训练循环: 单样本SGD, 全训练集迭代EPOCHS轮 */
+    {
+        MnistSet train;
+        MnistError nerr = mnist_load(&train,
+            "data/train-images-idx3-ubyte",
+            "data/train-labels-idx1-ubyte");
+        if(nerr != MNIST_OK){
+            printf("mnist_load failed: %d\n", nerr);
+            return 1;
+        }
+
+        Model M;
+        merr = model_init(&M, (const int[]){784, 128, 64, 10, 0});
+        if(merr != MODEL_OK){
+            printf("model_init failed: %d\n", merr);
+            mnist_free(&train);
+            return 1;
+        }
+
+        /* 输入缓冲只建一次, 每样本把784个像素拷进去 */
+        Tensor input;
+        terr = tensor_create(&input, 1, (const int[]){784});
+        if(terr != TENSOR_OK){
+            printf("create input failed: %d\n", terr);
+            model_free(&M);
+            mnist_free(&train);
+            return 1;
+        }
+
+        const int EPOCHS = 10;
+        const float LR = 0.01f;        //学习率, 0.1会触发ReLU死亡, 降到0.01
+        const int PIXELS = 784;
+
+        for(int epoch = 0;epoch < EPOCHS;epoch ++){
+            float total_loss = 0.0f;
+            int correct = 0;
+
+            for(int i = 0;i < train.n;i ++){
+                /* 第i张图拷入输入缓冲 */
+                memcpy(input.data, &train.images[i * PIXELS], PIXELS * sizeof(float));
+                int label = train.labels[i];
+
+                /* 前向: 784→128(ReLU)→64(ReLU)→10(softmax) */
+                relu_forward(&input, &M.layer[0]);
+                relu_forward(M.layer[0].activation_value, &M.layer[1]);
+                dense_forward(M.layer[1].activation_value, &M.layer[2]);  // z3 = W3·a2 + b3
+                softmax_forward(&M.layer[2]);                             // p = softmax(z3)
+
+                /* 损失 + 预测(argmax) */
+                total_loss += softmax_crossentropy_loss(M.layer[2].activation_value, label);
+                int pred = 0;
+                for(int k = 1;k < 10;k ++){
+                    if(M.layer[2].activation_value->data[k] >
+                       M.layer[2].activation_value->data[pred])  pred = k;
+                }
+                if(pred == label)  correct ++;
+
+                /* 反向: 从输出层逐层往输入层, 每层backward把误差写进上一层delta */
+                softmax_backward(&M.layer[2], label);                    /* δ3 = p - y */
+                dense_backward(M.layer[2].delta, &M.layer[2],
+                               M.layer[1].activation_value, M.layer[1].delta);
+                relu_backward(&M.layer[1]);                              /* δz2 = relu'(z2)·δa2 */
+                dense_backward(M.layer[1].delta, &M.layer[1],
+                               M.layer[0].activation_value, M.layer[0].delta);
+                relu_backward(&M.layer[0]);
+                dense_backward(M.layer[0].delta, &M.layer[0],
+                               &input, NULL);                            /* 输入层不回传 */
+
+                /* 参数更新: 三层权重/偏置各走一次SGD */
+                sgd_update(&M.layer[0], LR);
+                sgd_update(&M.layer[1], LR);
+                sgd_update(&M.layer[2], LR);
+            }
+
+            printf("epoch %2d | avg_loss %.4f | acc %.2f%% (%d/%d)\n",
+                   epoch + 1, total_loss / train.n,
+                   (float)correct / train.n * 100.0f, correct, train.n);
+        }
+
+        /* 13. 测试集评估: 训练完成, 用t10k跑一遍前向看泛化能力 */
+        {
+            MnistSet test;
+            nerr = mnist_load(&test,
+                "data/t10k-images-idx3-ubyte",
+                "data/t10k-labels-idx1-ubyte");
+            if(nerr != MNIST_OK){
+                printf("test mnist_load failed: %d\n", nerr);
+                tensor_free(&input);
+                model_free(&M);
+                mnist_free(&train);
+                return 1;
+            }
+            int correct = 0;
+            for(int i = 0;i < test.n;i ++){
+                memcpy(input.data, &test.images[i * PIXELS], PIXELS * sizeof(float));
+                relu_forward(&input, &M.layer[0]);
+                relu_forward(M.layer[0].activation_value, &M.layer[1]);
+                dense_forward(M.layer[1].activation_value, &M.layer[2]);
+                softmax_forward(&M.layer[2]);
+                int pred = 0;
+                for(int k = 1;k < 10;k ++){
+                    if(M.layer[2].activation_value->data[k] >
+                       M.layer[2].activation_value->data[pred])  pred = k;
+                }
+                if(pred == test.labels[i])  correct ++;
+            }
+            printf("test acc %.2f%% (%d/%d)\n",
+                   (float)correct / test.n * 100.0f, correct, test.n);
+            mnist_free(&test);
+        }
+
+        tensor_free(&input);
+        model_free(&M);
+        mnist_free(&train);
+    }
 
     return 0;
 }

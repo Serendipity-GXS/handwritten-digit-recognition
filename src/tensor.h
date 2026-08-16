@@ -38,4 +38,11 @@ void tensor_free(Tensor *t);
  */
 void tensor_fill(Tensor *t,float value);
 
+/**
+ * @brief tensor均匀随机填充函数
+ * @param t 指向待填充的tensor指针
+ * @param limit 限定随机数的范围为[-limit,limit],请传正值
+ */
+void tensor_fill_random(Tensor *t, float limit);
+
 #endif /*TENSOR_H*/

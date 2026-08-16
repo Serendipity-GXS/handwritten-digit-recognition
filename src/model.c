@@ -20,25 +20,25 @@ int model_init(Model *m, const int shape[]){
     m->tensor_pool = NULL;
 
     int layer_num = count_shape(shape);
-    if(layer_num < 2)  return MODEL_PARAMETER_INVALID;   //至少 输入+输出两层
+    if(layer_num < 2)  return MODEL_PARAMETER_INVALID;   //模型至少包含输入+输出两层
 
     //各层神经元数必须为正
     for(int i = 0;i < layer_num;i ++){
         if(shape[i] <= 0)  return MODEL_PARAMETER_INVALID;
     }
-    m->layer_num = layer_num;
+    m -> layer_num = layer_num;
 
     //拷贝形状数组(含结尾0), 由model_free统一释放
-    m->model_shape = (int*)malloc((layer_num + 1) * sizeof(int));
-    if(m->model_shape == NULL)  return MODEL_MEMORY_ALLOCATION_FAILURE;
+    m -> model_shape = (int*)malloc((layer_num + 1) * sizeof(int));
+    if(m -> model_shape == NULL)  return MODEL_MEMORY_ALLOCATION_FAILURE;
     for(int i = 0;i <= layer_num;i ++){
         m->model_shape[i] = shape[i];
     }
 
-    int num_dense = layer_num - 1;
+    int dense_num = layer_num - 1;
 
     //分配Dense层数组
-    m->layer = (Layer*)calloc(num_dense, sizeof(Layer));
+    m->layer = (Layer*)calloc(dense_num, sizeof(Layer));
     if(m->layer == NULL){
         free(m->model_shape);
         m->model_shape = NULL;
@@ -46,7 +46,7 @@ int model_init(Model *m, const int shape[]){
     }
 
     //分配tensor池, calloc保证所有data指针初始为NULL, 出错清理时tensor_free安全
-    m->tensor_pool = (Tensor*)calloc(num_dense * TENSORS_PER_LAYER, sizeof(Tensor));
+    m->tensor_pool = (Tensor*)calloc(dense_num * TENSORS_PER_LAYER, sizeof(Tensor));
     if(m->tensor_pool == NULL){
         free(m->layer);
         m->layer = NULL;
@@ -56,7 +56,7 @@ int model_init(Model *m, const int shape[]){
     }
 
     //逐层创建tensor并初始化
-    for(int i = 0;i < num_dense;i ++){
+    for(int i = 0;i < dense_num;i ++){
         Layer *l = &m->layer[i];
         Tensor *t = &m->tensor_pool[i * TENSORS_PER_LAYER];
         int row = shape[i + 1];   //本层神经元数

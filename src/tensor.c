@@ -70,3 +70,13 @@ void tensor_fill(Tensor *t,float value){
     }
 }
 
+void tensor_fill_random(Tensor *t, float limit){
+    //参数检查
+    if(t == NULL)   return;
+    if(limit <= 0)  return;
+    //随机填充
+    int size = t -> size;
+    for(int i = 0;i < size;i ++){
+        t -> data[i] = ((float)rand() - RAND_MAX / 2.0f) / (RAND_MAX / 2.0f) * limit;
+    }
+}
