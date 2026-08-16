@@ -1,12 +1,16 @@
 // main.c — temporary test entry for dense_forward.
 #include <stdio.h>
+#include <stdlib.h>
 #include "tensor.h"
 #include "layer.h"
+#include "model.h"
 
 int main(void)
 {
+    srand(42);   //固定随机种子, 保证初始权重可复现
     TensorError terr;
     LayerError lerr;
+    ModelError merr;
 
     /* 1. 输入: 3 个元素 {1000, 999, -1000} */
     Tensor in;
@@ -149,6 +153,25 @@ int main(void)
     tensor_free(&gb);
     tensor_free(&dlt);
     tensor_free(&pdelta);
+
+    /* 11. 测试model_init/model_free: 一次建三层 */
+    Model M;
+    merr = model_init(&M, (const int[]){784, 128, 64, 10, 0});
+    printf("model_init return: %d\n", merr);
+    printf("layer_num(含输入层) = %d\n", M.layer_num);
+    printf("model_shape = {%d, %d, %d, %d}\n",
+           M.model_shape[0], M.model_shape[1], M.model_shape[2], M.model_shape[3]);
+    for(int i = 0;i < M.layer_num - 1;i ++){
+        printf("Layer%d: weight[%d][%d] size=%d, bias size=%d, delta size=%d, w[0]=%.6f\n",
+               M.layer[i].index,
+               M.layer[i].weight_row, M.layer[i].weight_col,
+               M.layer[i].weight->size,
+               M.layer[i].bias->size,
+               M.layer[i].delta->size,
+               M.layer[i].weight->data[0]);
+    }
+    model_free(&M);
+    printf("model_free done\n");
 
     return 0;
 }

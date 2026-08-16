@@ -20,13 +20,27 @@ typedef enum{
     MNIST_INVALID_PARAMETER
 }MnistError;
 
-// Reads the image and label idx files into set. Returns 0 on success, nonzero on failure.
+/**
+ * @brief MNIST数据加载函数，读取图片和标签两个idx文件
+ * @param set 指向MnistSet结构体的指针,加载的数据写入其中
+ * @param img_path 图片idx文件的路径
+ * @param lbl_path 标签idx文件的路径
+ * @retval MNIST_OK表示成功,否则返回对应错误码
+ */
 int  mnist_load(MnistSet *set, const char *img_path, const char *lbl_path);
 
-// Frees memory owned by set.
+/**
+ * @brief MNIST数据集释放函数
+ * @param set 指向待释放的MnistSet结构体的指针
+ */
 void mnist_free(MnistSet *set);
 
-// Prints one image (h*w floats) as ASCII art, for visual verification.
+/**
+ * @brief 图片字符画打印函数,用于可视化验证
+ * @param img 图片像素数据, h*w个浮点数, 已归一化到[0,1]
+ * @param h 图片高度
+ * @param w 图片宽度
+ */
 void print_ascii_image(const float *img, int h, int w);
 
 #endif /* DATA_H */
