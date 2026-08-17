@@ -1,4 +1,3 @@
-// main.c — MNIST手写数字识别: 训练模式 / 推理模式
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,10 +7,8 @@
 #include "model.h"
 #include "data.h"
 
-/* 模式开关:
- *   定义   MODE_TRAIN → 训练模式: 训练模型并导出weights.h
- *   注释掉 MODE_TRAIN → 推理模式: 加载weights.h, 跳过训练直接测试
- */
+//这里的宏定义用于模式切换。MODE_TRAIN为训练模式(训练模型并导出weights.h)
+//把宏定义注释掉就是推理模式，直接加载训练好的weights.h，跳过训练直接测试
 #define MODE_TRAIN
 
 int main(void)
@@ -26,6 +23,7 @@ int main(void)
     printf("=== Handwritten Digit Recognition ===");
 
 #ifdef MODE_TRAIN
+    printf("\n[MODE] Train mode on.");
     srand(50);   //固定随机种子, 保证初始权重可复现
 
     //载入训练集
@@ -48,17 +46,17 @@ int main(void)
 
     //训练循环
     printf("\n[INFO] Train Start.");
-    const int EPOCH = 10;
-    const int TRAIN_SIZE = Train.n;
-    const float LR = 0.01;
+    const int EPOCH = 10;           //训练轮次
+    const int TRAIN_SIZE = Train.n; //控制训练样本数量，默认全量训练
+    const float LR = 0.01;          //学习率（不要超过0.1，会不收敛）
     printf("\n[EPOCH:%d | PIXEL:%d | TRAIN_SIZE:%d | LR:%.4f]",EPOCH,PIXEL,TRAIN_SIZE,LR);
 
     for(int epoch = 0;epoch < EPOCH;epoch ++){
 
         clock_t t0 = clock();
-        float Loss = 0.0f;
-        float acc = 0.0f;
-        int correct = 0;
+        float Loss = 0.0f;  //每轮训练后的平均损失
+        float acc = 0.0f;   //每轮训练中的准确率
+        int correct = 0;    //成功识别样本计数
 
         for(int i = 0;i < TRAIN_SIZE;i ++){
             memcpy(input.data,&Train.images[i * PIXEL],PIXEL * sizeof(float));
@@ -95,7 +93,7 @@ int main(void)
         double sec = (double)(clock() - t0) / CLOCKS_PER_SEC;
         acc = (float)correct / TRAIN_SIZE;
         Loss = Loss / TRAIN_SIZE;
-        printf("\nepoch %02d | Loss:%.6f | acc:%.2f%% | time:%.3fs | (%d/%d)",epoch + 1,Loss,acc*100,sec,correct,TRAIN_SIZE);
+        printf("\nepoch %02d | avgLoss:%.6f | acc:%.2f%% | time:%.3fs | (%d/%d)",epoch + 1,Loss,acc*100,sec,correct,TRAIN_SIZE);
     }
 
     //权重导出: 生成weights.h (main.exe从项目根运行, 故路径为src/weights.h)
@@ -109,7 +107,7 @@ int main(void)
 
     mnist_free(&Train);
 #else
-    printf("(infer mode)");
+    printf("\n[MODE] infer mode on.");
     //推理模式: 不训练, 直接加载已导出的weights.h
     Model M;
     merr = model_init(&M,(const int[]){784,128,64,10,0});
@@ -127,7 +125,7 @@ int main(void)
     printf("\n[INFO] Weights loaded from src/weights.h.");
 #endif
 
-    //两种模式共用: 加载测试集 → 前向推理 → 报告
+    //两种模式共用(验证测试集)
     MnistSet Test;
     Mnerr = mnist_load(&Test,"data/t10k-images-idx3-ubyte","data/t10k-labels-idx1-ubyte");
     if(Mnerr != MNIST_OK){
@@ -141,6 +139,9 @@ int main(void)
     float Loss = 0.0f;
     float acc = 0.0f;
     int correct = 0;
+    const int WRONG_SHOW = 3;   //最多展示的识别错误样本数
+    int wrong_idx[WRONG_SHOW];  //记录识别错误样本在测试集中的索引
+    int wrong_cnt = 0;
     for(int i = 0;i < Test.n;i ++){
         memcpy(input.data,&Test.images[i * PIXEL],PIXEL * sizeof(float));
         int label = Test.labels[i];
@@ -161,12 +162,50 @@ int main(void)
         if(!is_correct){
             correct ++;
         }
+        else if(wrong_cnt < WRONG_SHOW){   //识别错误: 记录前几个样本索引用于后面展示
+            wrong_idx[wrong_cnt ++] = i;
+        }
     }
     Loss /= (float)Test.n;
     acc = correct / (float)Test.n;
     double sec = (double)(clock() - t0) / CLOCKS_PER_SEC;
     printf("\nTest result:");
     printf("\nacc:%.2f%% | avgLoss:%f | time:%fs | (%d/%d)",acc * 100,Loss,sec,correct,Test.n);
+
+    //展示前几个识别错误的样本: 重跑前向 → 字符画 + 10类概率分布 + 最终判断
+    if(wrong_cnt > 0){
+        printf("\n\n=== Misclassified samples (show %d, total wrong = %d) ===", wrong_cnt, Test.n - correct);
+        for(int k = 0;k < wrong_cnt;k ++){
+            int i = wrong_idx[k];
+            int label = Test.labels[i];
+            memcpy(input.data,&Test.images[i * PIXEL],PIXEL * sizeof(float));
+            //重跑前向, 得到该样本的softmax概率输出
+            relu_forward(&input,&M.layer[0]);
+            relu_forward(M.layer[0].activation_value,&M.layer[1]);
+            dense_forward(M.layer[1].activation_value,&M.layer[2]);
+            softmax_forward(&M.layer[2]);
+            const Tensor *probs = M.layer[2].activation_value;
+            //argmax: 模型最终判断
+            int predict = 0;
+            for(int j = 1;j < 10;j ++){
+                if(probs -> data[j] > probs -> data[predict])  predict = j;
+            }
+
+            printf("\n\n----- Sample #%d | true label: %d | predicted: %d (%s) -----\n",
+                   i, label, predict, (label == predict) ? "correct" : "WRONG");
+            print_ascii_image(&Test.images[i * PIXEL], Test.height, Test.width);
+            //10个类概率分布, 每行5个, 最终判断(argmax)概率后加*标记
+            printf("prob: ");
+            for(int row = 0;row < 2;row ++){
+                if(row > 0)  printf("      ");   //第二行缩进, 与"prob: "对齐
+                for(int col = 0;col < 5;col ++){
+                    int j = row * 5 + col;
+                    printf(" %d:%.4f%s", j, probs -> data[j], (j == predict) ? "*" : "");
+                }
+                printf("\n");
+            }
+        }
+    }
 
     model_free(&M);
     tensor_free(&input);
