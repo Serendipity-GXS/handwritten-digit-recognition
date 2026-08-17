@@ -1,4 +1,4 @@
-// main.c — temporary test entry for dense_forward.
+// main.c — MNIST手写数字识别: 训练模式 / 推理模式
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,13 +8,26 @@
 #include "model.h"
 #include "data.h"
 
+/* 模式开关:
+ *   定义   MODE_TRAIN → 训练模式: 训练模型并导出weights.h
+ *   注释掉 MODE_TRAIN → 推理模式: 加载weights.h, 跳过训练直接测试
+ */
+#define MODE_TRAIN
+
 int main(void)
 {
-    srand(50);   //固定随机种子, 保证初始权重可复现
     MnistError Mnerr;
     ModelError merr;
+    const int PIXEL = 784;
+
+    Tensor input;   //输入缓冲, 训练/测试共用
+    tensor_create(&input,1,(const int[]){784});
 
     printf("=== Handwritten Digit Recognition ===");
+
+#ifdef MODE_TRAIN
+    srand(50);   //固定随机种子, 保证初始权重可复现
+
     //载入训练集
     MnistSet Train;
     Mnerr = mnist_load(&Train,"data/train-images-idx3-ubyte","data/train-labels-idx1-ubyte");
@@ -29,19 +42,17 @@ int main(void)
     merr = model_init(&M,(const int[]){784,128,64,10,0});
     if(merr != MODEL_OK){
         printf("\nMODEL_INIT_ERROR:%d",merr);
+        return 1;
     }
     printf("\n[INFO] Model init successfully.");
 
     //训练循环
     printf("\n[INFO] Train Start.");
     const int EPOCH = 10;
-    const int PIXEL = 784;
     const int TRAIN_SIZE = Train.n;
     const float LR = 0.01;
     printf("\n[EPOCH:%d | PIXEL:%d | TRAIN_SIZE:%d | LR:%.4f]",EPOCH,PIXEL,TRAIN_SIZE,LR);
 
-    Tensor input;
-    tensor_create(&input,1,(const int[]){784});
     for(int epoch = 0;epoch < EPOCH;epoch ++){
 
         clock_t t0 = clock();
@@ -87,7 +98,36 @@ int main(void)
         printf("\nepoch %02d | Loss:%.6f | acc:%.2f%% | time:%.3fs | (%d/%d)",epoch + 1,Loss,acc*100,sec,correct,TRAIN_SIZE);
     }
 
-    //加载测试集合
+    //权重导出: 生成weights.h (main.exe从项目根运行, 故路径为src/weights.h)
+    merr = model_save_weights(&M, "src/weights.h");
+    if(merr != MODEL_OK){
+        printf("\nSAVE_WEIGHTS_ERROR:%d",merr);
+    }
+    else{
+        printf("\n[INFO] Weights saved to src/weights.h.");
+    }
+
+    mnist_free(&Train);
+#else
+    printf("(infer mode)");
+    //推理模式: 不训练, 直接加载已导出的weights.h
+    Model M;
+    merr = model_init(&M,(const int[]){784,128,64,10,0});
+    if(merr != MODEL_OK){
+        printf("\nMODEL_INIT_ERROR:%d",merr);
+        return 1;
+    }
+    printf("\n[INFO] Model init successfully.");
+
+    merr = model_load_weights(&M);
+    if(merr != MODEL_OK){
+        printf("\nLOAD_WEIGHTS_ERROR:%d",merr);
+        return 1;
+    }
+    printf("\n[INFO] Weights loaded from src/weights.h.");
+#endif
+
+    //两种模式共用: 加载测试集 → 前向推理 → 报告
     MnistSet Test;
     Mnerr = mnist_load(&Test,"data/t10k-images-idx3-ubyte","data/t10k-labels-idx1-ubyte");
     if(Mnerr != MNIST_OK){
@@ -120,7 +160,7 @@ int main(void)
         }
         if(!is_correct){
             correct ++;
-        }        
+        }
     }
     Loss /= (float)Test.n;
     acc = correct / (float)Test.n;
@@ -128,43 +168,8 @@ int main(void)
     printf("\nTest result:");
     printf("\nacc:%.2f%% | avgLoss:%f | time:%fs | (%d/%d)",acc * 100,Loss,sec,correct,Test.n);
 
-    //权重导出: 生成weights.h (main.exe从项目根运行, 故路径为src/weights.h)
-    merr = model_save_weights(&M, "src/weights.h");
-    if(merr != MODEL_OK){
-        printf("\nSAVE_WEIGHTS_ERROR:%d",merr);
-    }
-    else{
-        printf("\n[INFO] Weights saved to src/weights.h.");
-    }
-
-    //回读验证: 新建模型M2, 加载权重后重跑测试集, 准确率应与上面的M一致
-    Model M2;
-    merr = model_init(&M2,(const int[]){784,128,64,10,0});
-    if(merr != MODEL_OK){
-        printf("\nMODEL_INIT_ERROR:%d",merr);
-    }
-    model_load_weights(&M2);
-    int correct2 = 0;
-    for(int i = 0;i < Test.n;i ++){
-        memcpy(input.data,&Test.images[i * PIXEL],PIXEL * sizeof(float));
-        int label = Test.labels[i];
-        relu_forward(&input,&M2.layer[0]);
-        relu_forward(M2.layer[0].activation_value,&M2.layer[1]);
-        dense_forward(M2.layer[1].activation_value,&M2.layer[2]);
-        softmax_forward(&M2.layer[2]);
-        int best = 0;   //argmax: 概率最大的类
-        for(int j = 1;j < 10;j ++){
-            if(M2.layer[2].activation_value->data[j] > M2.layer[2].activation_value->data[best])  best = j;
-        }
-        if(best == label)  correct2 ++;
-    }
-    printf("\n[INFO] Loaded model test: acc:%.2f%% | (%d/%d)",correct2 / (float)Test.n * 100,correct2,Test.n);
-    model_free(&M2);
-
-
     model_free(&M);
     tensor_free(&input);
-    mnist_free(&Train);
     mnist_free(&Test);
     return 0;
 }
