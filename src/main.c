@@ -128,6 +128,39 @@ int main(void)
     printf("\nTest result:");
     printf("\nacc:%.2f%% | avgLoss:%f | time:%fs | (%d/%d)",acc * 100,Loss,sec,correct,Test.n);
 
+    //权重导出: 生成weights.h (main.exe从项目根运行, 故路径为src/weights.h)
+    merr = model_save_weights(&M, "src/weights.h");
+    if(merr != MODEL_OK){
+        printf("\nSAVE_WEIGHTS_ERROR:%d",merr);
+    }
+    else{
+        printf("\n[INFO] Weights saved to src/weights.h.");
+    }
+
+    //回读验证: 新建模型M2, 加载权重后重跑测试集, 准确率应与上面的M一致
+    Model M2;
+    merr = model_init(&M2,(const int[]){784,128,64,10,0});
+    if(merr != MODEL_OK){
+        printf("\nMODEL_INIT_ERROR:%d",merr);
+    }
+    model_load_weights(&M2);
+    int correct2 = 0;
+    for(int i = 0;i < Test.n;i ++){
+        memcpy(input.data,&Test.images[i * PIXEL],PIXEL * sizeof(float));
+        int label = Test.labels[i];
+        relu_forward(&input,&M2.layer[0]);
+        relu_forward(M2.layer[0].activation_value,&M2.layer[1]);
+        dense_forward(M2.layer[1].activation_value,&M2.layer[2]);
+        softmax_forward(&M2.layer[2]);
+        int best = 0;   //argmax: 概率最大的类
+        for(int j = 1;j < 10;j ++){
+            if(M2.layer[2].activation_value->data[j] > M2.layer[2].activation_value->data[best])  best = j;
+        }
+        if(best == label)  correct2 ++;
+    }
+    printf("\n[INFO] Loaded model test: acc:%.2f%% | (%d/%d)",correct2 / (float)Test.n * 100,correct2,Test.n);
+    model_free(&M2);
+
 
     model_free(&M);
     tensor_free(&input);
