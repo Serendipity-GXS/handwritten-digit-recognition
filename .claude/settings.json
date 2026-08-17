@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(awk '/附录 B/{flag=1} flag' GUIDE.md)",
+      "WebSearch",
+      "Bash(gcc -std=c11 -O2 -Wall -Wextra -Wpedantic -I src test_backward.c src/tensor.c src/layer.c -o test_backward.exe)",
+      "Bash(./test_backward.exe)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

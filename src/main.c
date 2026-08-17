@@ -9,7 +9,7 @@
 
 //这里的宏定义用于模式切换。MODE_TRAIN为训练模式(训练模型并导出weights.h)
 //把宏定义注释掉就是推理模式，直接加载训练好的weights.h，跳过训练直接测试
-#define MODE_TRAIN
+//#define MODE_TRAIN
 
 int main(void)
 {
@@ -48,7 +48,7 @@ int main(void)
     printf("\n[INFO] Train Start.");
     const int EPOCH = 10;           //训练轮次
     const int TRAIN_SIZE = Train.n; //控制训练样本数量，默认全量训练
-    const float LR = 0.01;          //学习率（不要超过0.1，会不收敛）
+    const float LR = 0.01;          //学习率（不要超过0.1，训练会不收敛！不过也可以改着玩玩哈哈）
     printf("\n[EPOCH:%d | PIXEL:%d | TRAIN_SIZE:%d | LR:%.4f]",EPOCH,PIXEL,TRAIN_SIZE,LR);
 
     for(int epoch = 0;epoch < EPOCH;epoch ++){
@@ -106,9 +106,11 @@ int main(void)
     }
 
     mnist_free(&Train);
+
 #else
+
     printf("\n[MODE] infer mode on.");
-    //推理模式: 不训练, 直接加载已导出的weights.h
+    //推理模式,直接加载已导出的weights.h
     Model M;
     merr = model_init(&M,(const int[]){784,128,64,10,0});
     if(merr != MODEL_OK){
@@ -123,9 +125,10 @@ int main(void)
         return 1;
     }
     printf("\n[INFO] Weights loaded from src/weights.h.");
+
 #endif
 
-    //两种模式共用(验证测试集)
+    //后面这段训练/推理两种模式共用(验证测试集)
     MnistSet Test;
     Mnerr = mnist_load(&Test,"data/t10k-images-idx3-ubyte","data/t10k-labels-idx1-ubyte");
     if(Mnerr != MNIST_OK){
@@ -139,7 +142,7 @@ int main(void)
     float Loss = 0.0f;
     float acc = 0.0f;
     int correct = 0;
-    const int WRONG_SHOW = 3;   //最多展示的识别错误样本数
+    const int WRONG_SHOW = 8;   //最多展示的识别错误样本数
     int wrong_idx[WRONG_SHOW];  //记录识别错误样本在测试集中的索引
     int wrong_cnt = 0;
     for(int i = 0;i < Test.n;i ++){
@@ -172,35 +175,36 @@ int main(void)
     printf("\nTest result:");
     printf("\nacc:%.2f%% | avgLoss:%f | time:%fs | (%d/%d)",acc * 100,Loss,sec,correct,Test.n);
 
-    //展示前几个识别错误的样本: 重跑前向 → 字符画 + 10类概率分布 + 最终判断
+    //展示前几个识别错误的样本
     if(wrong_cnt > 0){
-        printf("\n\n=== Misclassified samples (show %d, total wrong = %d) ===", wrong_cnt, Test.n - correct);
+        printf("\n\n==== Misclassified samples (show %d, total wrong = %d) ====", wrong_cnt, Test.n - correct);
         for(int k = 0;k < wrong_cnt;k ++){
             int i = wrong_idx[k];
             int label = Test.labels[i];
             memcpy(input.data,&Test.images[i * PIXEL],PIXEL * sizeof(float));
-            //重跑前向, 得到该样本的softmax概率输出
+            //重新跑一下前向传播，计算模型输出的概率分布
             relu_forward(&input,&M.layer[0]);
             relu_forward(M.layer[0].activation_value,&M.layer[1]);
             dense_forward(M.layer[1].activation_value,&M.layer[2]);
             softmax_forward(&M.layer[2]);
-            const Tensor *probs = M.layer[2].activation_value;
-            //argmax: 模型最终判断
+            const Tensor *probs = M.layer[2].activation_value;  //这里用const声明一下，不要把输出的结果改掉了
+            //模型最终判断
             int predict = 0;
             for(int j = 1;j < 10;j ++){
                 if(probs -> data[j] > probs -> data[predict])  predict = j;
             }
 
-            printf("\n\n----- Sample #%d | true label: %d | predicted: %d (%s) -----\n",
-                   i, label, predict, (label == predict) ? "correct" : "WRONG");
+            printf("\n\n----- Sample #%d | true label: %d | predicted: %d (WRONG) -----\n",i, label, predict);
             print_ascii_image(&Test.images[i * PIXEL], Test.height, Test.width);
-            //10个类概率分布, 每行5个, 最终判断(argmax)概率后加*标记
+            
+            //打印模型输出的概率分布
             printf("prob: ");
             for(int row = 0;row < 2;row ++){
-                if(row > 0)  printf("      ");   //第二行缩进, 与"prob: "对齐
+                if(row > 0)  printf("      ");   //第二行缩进, 和第一行的数据对整齐(ヾ(≧▽≦*)o)
                 for(int col = 0;col < 5;col ++){
                     int j = row * 5 + col;
-                    printf(" %d:%.4f%s", j, probs -> data[j], (j == predict) ? "*" : "");
+                    printf(" [%d]:%.4f%s ", j, probs -> data[j], (j == predict) ? "*" : " ");
+                    //这里用*注明模型认为的图像显示的数字
                 }
                 printf("\n");
             }
