@@ -13692,5 +13692,4 @@ static const float B_2[10] = {
     1.16274583f,0.706522822f,
 };
 
-
 #endif /*WEIGHTS_H*/

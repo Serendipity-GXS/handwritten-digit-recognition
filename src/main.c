@@ -9,7 +9,7 @@
 
 //这里的宏定义用于模式切换。MODE_TRAIN为训练模式(训练模型并导出weights.h)
 //把宏定义注释掉就是推理模式，直接加载训练好的weights.h，跳过训练直接测试
-//#define MODE_TRAIN
+#define MODE_TRAIN
 
 int main(void)
 {
