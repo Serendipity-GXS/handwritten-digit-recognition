@@ -3,11 +3,17 @@ main.exe
 src/*.o
 src/*.obj
 
-# MNIST dataset (re-download with: scripts/download_mnist.ps1)
-data/
+# MNIST dataset is tracked in this repo (4 idx files, ~55 MB total)
+# to make the project runnable right after clone. To re-download:
+#   powershell -ExecutionPolicy Bypass -File scripts/download_mnist.ps1
 
 # Trained model weights (generated in stage 5)
 weights/
+
+# Local-only files, not published to the public repo
+GUIDE.md
+.claude/
+.vscode/
 
 # Misc
 *.log
