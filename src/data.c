@@ -44,7 +44,7 @@ int mnist_load(MnistSet *set, const char *img_path, const char *lbl_path)
         goto cleanup;
     }
 
-    //校验magic number
+    //校验训练集和测试集的 magic number
     if(fread(b1,1,4,img) != 4 || fread(b2,1,4,lbl) != 4){
         err = MNIST_FILE_CORRUPTION;
         goto cleanup;

@@ -179,14 +179,14 @@ Handwritten_digit_recognition/
 ├── data/                       # MNIST 数据集（4 个 idx 文件，已随仓库提供）
 ├── weights/                    # 预留：后续二进制模型文件目录
 ├── scripts/
-│   └── download_mnist.ps1      # 数据集下载 / 解压 / 校验脚本
+│       └── download_mnist.ps1      # 数据集下载 / 解压 / 校验脚本
 └── src/
-    ├── main.c                  # 一个训练/推理例程
-    ├── tensor.c / .h           # Tensor 结构体（行优先连续内存）与基础操作
-    ├── data.c   / .h           # MNIST idx 格式读取、ASCII 字符画渲染
-    ├── layer.c  / .h           # Dense / ReLU / Softmax 前向与反向、交叉熵、SGD
-    ├── model.c  / .h           # 网络组装、tensor 池管理、权重导出与回读
-    └── weights.h               # 训练生成的权重（C 数组，已随仓库提供）
+        ├── main.c                  # 一个训练/推理例程
+        ├── tensor.c / .h           # Tensor 结构体（行优先连续内存）与基础操作
+        ├── data.c   / .h           # MNIST idx 格式读取、ASCII 字符画渲染
+        ├── layer.c  / .h           # Dense / ReLU / Softmax 前向与反向、交叉熵、SGD
+        ├── model.c  / .h           # 网络组装、tensor 池管理、权重导出与回读
+        └── weights.h               # 训练生成的权重（C 数组，已随仓库提供）
 ```
 
 
